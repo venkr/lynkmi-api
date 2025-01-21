@@ -5,7 +5,7 @@ import { chromium, Page, type BrowserContext } from "playwright";
 type SubmitLinkRequest = {
   username: string;
   password: string;
-  title: string;
+  title?: string;
   url: string;
   tags: string[];
   description?: string;
@@ -54,7 +54,9 @@ class ScrapingQueue {
 }
 
 async function login(page: Page, username: string, password: string) {
-  await page.waitForSelector('a[href="/accounts/login/?next=/"].btn');
+  await page.waitForSelector('a[href="/accounts/login/?next=/"].btn', {
+    timeout: 3000,
+  });
 
   console.log("Saw login button");
 
@@ -62,7 +64,7 @@ async function login(page: Page, username: string, password: string) {
   await page.click('a.btn:has-text("login")');
 
   // Wait for login form to appear
-  await page.waitForSelector("#id_username");
+  await page.waitForSelector("#id_username", { timeout: 3000 });
 
   console.log("Saw login form");
 
@@ -73,15 +75,65 @@ async function login(page: Page, username: string, password: string) {
   // Click the login submit button
   await page.click("button.login-submit");
 
-  //   // Wait for navigation/redirect after login
-  //   await page.waitForNavigation();
+  // Wait for settings link to verify successful login
+  try {
+    await page.waitForSelector('a[href="/settings"][title="Settings"]', {
+      timeout: 3000,
+    });
+    console.log("Successfully logged in");
+  } catch (error) {
+    console.error("Failed to login - settings link not found");
+    throw new Error("Login failed - could not verify successful login");
+  }
+}
 
-  //   // Check if login failed by looking for error div
-  //   const errorDiv = await page.locator(".errors");
-  //   if (await errorDiv.isVisible()) {
-  //     const errorText = await errorDiv.textContent();
-  //     throw new Error(`Login failed: ${errorText}`);
-  //   }
+async function submitLink(
+  page: Page,
+  url: string,
+  tags: string[],
+  title?: string,
+  description?: string
+) {
+  // Fill URL and wait for other fields to appear
+  await page.fill("#id_url", url);
+  await page.waitForTimeout(100);
+
+  // Handle tags using the select2 textarea
+  const tagInput = page.locator("div.add-tags-input .select2-search__field");
+  for (const tag of tags) {
+    await tagInput.fill(tag);
+    await page.keyboard.press("Enter");
+    // Small wait between tags
+    await page.waitForTimeout(100);
+  }
+
+  // Wait the required 300ms
+  await page.waitForTimeout(300);
+
+  // Handle optional description
+  if (description) {
+    await page.fill("#id_description", description);
+  }
+
+  // Handle title
+  const titleField = page.locator("#id_title");
+  const currentTitle = await titleField.inputValue();
+
+  if (title) {
+    await titleField.fill(title);
+  } else if (!currentTitle) {
+    // If no title provided and no auto-generated title, use "Untitled Link"
+    await titleField.fill("Untitled Link");
+  }
+
+  // Click the submit button to make it enabled
+  await page.click("input.add-form-submit#submit-button", { force: true });
+
+  // Click the submit button
+  await page.click("input.add-form-submit#submit-button");
+
+  // Wait 300 ms
+  await page.waitForTimeout(300);
 }
 
 async function main() {
@@ -105,13 +157,7 @@ async function main() {
     const body = request.body as SubmitLinkRequest;
 
     // Validate required fields
-    if (
-      !body.username ||
-      !body.password ||
-      !body.title ||
-      !body.url ||
-      !body.tags
-    ) {
+    if (!body.username || !body.password || !body.url || !body.tags) {
       reply.code(400);
       return { error: "Missing required fields" };
     }
@@ -124,21 +170,34 @@ async function main() {
         const page = await context.newPage();
 
         try {
-          // TODO: Implement login
-          // TODO: Implement submit
           await page.goto("https://lynkmi.com");
           await login(page, body.username, body.password);
+          await submitLink(
+            page,
+            body.url,
+            body.tags,
+            body.title,
+            body.description
+          );
+          // TODO: Implement submit
 
           return { success: true };
         } finally {
+          // Wait 5 seconds before closing context
+          //   await page.waitForTimeout(5000);
           await context.close();
         }
       });
 
       return result;
     } catch (error) {
-      reply.code(500);
-      return { error: "Failed to process request" };
+      if (error instanceof Error) {
+        reply.code(500);
+        return { error: "Failed to process request", details: error.message };
+      } else {
+        reply.code(500);
+        return { error: "Failed to process request", details: error };
+      }
     }
   });
 
