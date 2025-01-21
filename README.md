@@ -34,7 +34,7 @@ pnpm run dev
 To deploy it, use the attached Dockerfile. If you're using Fly, the fly.toml should be helpful, you'll just need to change the app name to your own, and then run:
 ```
 fly deploy
-``
+```
 
 It takes ~400 MB of RAM when idle, so fits in the Fly 512mb instance at $3.19/mo. Ensure you scale down to one instance with `fly scale count 1`.
 You may also want to [scale to zero](https://www.jacobparis.com/content/fly-autoscale-to-zero), but this is a bit more effort to set up.
