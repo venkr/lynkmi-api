@@ -13,7 +13,7 @@ export default defineConfig({
   ],
   use: {
     // Useful scraping defaults
-    headless: true,
+    headless: false,
     viewport: { width: 1280, height: 720 },
     ignoreHTTPSErrors: true,
     // Adjust based on sites you're scraping

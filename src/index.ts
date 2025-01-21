@@ -54,14 +54,15 @@ class ScrapingQueue {
 }
 
 async function login(page: Page, username: string, password: string) {
-  await page.waitForSelector('a[href="/accounts/login/?next=/"].btn', {
+  const loginSelector = 'a[href="/accounts/login/?next=/"].btn';
+  await page.waitForSelector(loginSelector, {
     timeout: 3000,
   });
 
   console.log("Saw login button");
 
   // First click the login button on the homepage
-  await page.click('a.btn:has-text("login")');
+  await page.click(loginSelector);
 
   // Wait for login form to appear
   await page.waitForSelector("#id_username", { timeout: 3000 });
@@ -128,6 +129,8 @@ async function submitLink(
   const titleField = page.locator("#id_title");
   const currentTitle = await titleField.inputValue();
 
+  // TODO: This never works correctly for now - ie: the auto-gen'd title never shows up
+  // Figure out why.
   if (title) {
     await titleField.fill(title);
     console.log("Filled title");
@@ -137,13 +140,20 @@ async function submitLink(
     console.log("Filled title");
   }
 
-  // Click the submit button to make it enabled
+  // Remove disabled class from submit button
+  // TODO: Unclear why this is necessary
+  await page.evaluate(() => {
+    const submitButton = document.querySelector(
+      "input.add-form-submit#submit-button"
+    );
+    if (submitButton) {
+      submitButton.classList.remove("disabled");
+    }
+  });
+  console.log("Removed disabled class from submit button");
+
   await page.click("input.add-form-submit#submit-button", { force: true });
   console.log("Clicked submit button (to focus)");
-
-  // Click the submit button
-  await page.click("input.add-form-submit#submit-button");
-  console.log("Clicked submit button");
 
   // Wait 300 ms
   await page.waitForTimeout(300);
@@ -152,7 +162,20 @@ async function submitLink(
 async function main() {
   // Initialize browser
   const browser = await chromium.launch({
-    headless: false,
+    // headless: false,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+    ],
+    logger: {
+      isEnabled: (name, severity) => {
+        return true;
+      },
+      log: (name, severity, message) => {
+        console.log(name, severity, message);
+      },
+    },
   });
   const queue = new ScrapingQueue();
 
