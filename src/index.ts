@@ -102,9 +102,10 @@ async function submitLink(
   const tagInput = page.locator("div.add-tags-input .select2-search__field");
   for (const tag of tags) {
     await tagInput.fill(tag);
-    await page.keyboard.press("Enter");
+    await page.waitForTimeout(200);
+    await page.click(".select2-results__option:first-child");
     // Small wait between tags
-    await page.waitForTimeout(100);
+    await page.waitForTimeout(200);
   }
 
   // Wait the required 300ms
