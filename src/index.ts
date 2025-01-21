@@ -75,6 +75,8 @@ async function login(page: Page, username: string, password: string) {
   // Click the login submit button
   await page.click("button.login-submit");
 
+  console.log("Submitted login");
+
   // Wait for settings link to verify successful login
   try {
     await page.waitForSelector('a[href="/settings"][title="Settings"]', {
@@ -98,6 +100,11 @@ async function submitLink(
   await page.fill("#id_url", url);
   await page.waitForTimeout(100);
 
+  // Click on the URL field to focus it
+  await page.click("#id_url");
+
+  console.log("Filled URL");
+
   // Handle tags using the select2 textarea
   const tagInput = page.locator("div.add-tags-input .select2-search__field");
   for (const tag of tags) {
@@ -106,14 +113,15 @@ async function submitLink(
     await page.click(".select2-results__option:first-child");
     // Small wait between tags
     await page.waitForTimeout(200);
+    console.log("Filled tag", tag);
   }
 
-  // Wait the required 300ms
-  await page.waitForTimeout(300);
+  console.log("Filled tags");
 
   // Handle optional description
   if (description) {
     await page.fill("#id_description", description);
+    console.log("Filled description");
   }
 
   // Handle title
@@ -122,16 +130,20 @@ async function submitLink(
 
   if (title) {
     await titleField.fill(title);
+    console.log("Filled title");
   } else if (!currentTitle) {
     // If no title provided and no auto-generated title, use "Untitled Link"
     await titleField.fill("Untitled Link");
+    console.log("Filled title");
   }
 
   // Click the submit button to make it enabled
   await page.click("input.add-form-submit#submit-button", { force: true });
+  console.log("Clicked submit button (to focus)");
 
   // Click the submit button
   await page.click("input.add-form-submit#submit-button");
+  console.log("Clicked submit button");
 
   // Wait 300 ms
   await page.waitForTimeout(300);
