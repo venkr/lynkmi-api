@@ -9,6 +9,7 @@ type SubmitLinkRequest = {
   url: string;
   tags: string[];
   description?: string;
+  fireAndForget?: boolean;
 };
 
 // Simple queue to handle requests
@@ -206,8 +207,13 @@ async function main() {
         const page = await context.newPage();
 
         try {
+          if (body.fireAndForget) {
+            reply.send({ success: true });
+          }
           await page.goto("https://lynkmi.com");
           await login(page, body.username, body.password);
+          // early reply as long as we successfully logged in
+          // TODO: Let's make the actual link API faster + more reliable so we don't need this!
           await submitLink(
             page,
             body.url,
@@ -215,9 +221,6 @@ async function main() {
             body.title,
             body.description
           );
-          // TODO: Implement submit
-
-          return { success: true };
         } finally {
           // Wait 5 seconds before closing context
           //   await page.waitForTimeout(5000);
